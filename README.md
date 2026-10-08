@@ -24,7 +24,10 @@ Nunca coloque chave de ingestão ou credencial de banco em variáveis `VITE_*`.
 
 ## Atualização e falhas
 
-Consulta inicial imediata. Próxima consulta 15 segundos após sucesso ou 30 após falha, com timeout de 8 segundos.
+Consulta inicial imediata. Próxima consulta 500 ms após sucesso ou 2 segundos após falha, com timeout de 8 segundos.
+`VITE_POLL_INTERVAL_MS` permite ajustar o intervalo de sucesso entre 250 e 30000 ms; valores inválidos usam 500 ms.
+No ambiente local, uma mudança já persistida costuma aparecer na próxima consulta, em até cerca de 500 ms mais o tempo da requisição.
+Esse intervalo é separado da confirmação da detecção: três amostras a 2 FPS exigem cerca de 1 a 1,5 segundo de análise consistente.
 Não há consultas sobrepostas. Desmontar a interface cancela a consulta pendente.
 Durante indisponibilidade, os últimos estados e horário bem-sucedido permanecem. O snapshot também é mantido no navegador para recarregamentos.
 Não apresenta mensagens de erro técnico, conforme pedido do usuário. Indica discretamente "Última leitura disponível".

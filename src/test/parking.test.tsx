@@ -132,7 +132,7 @@ describe("visualização das vagas", () => {
 });
 
 describe("polling e recuperação", () => {
-  it("consulta após 15 segundos, preserva dados e tenta após 30 segundos na falha", async () => {
+  it("consulta após 500 ms, preserva dados e tenta após 2 segundos na falha", async () => {
     vi.useFakeTimers();
     const fetch = vi
       .fn()
@@ -147,14 +147,14 @@ describe("polling e recuperação", () => {
     expect(result.current.data?.summary.total).toBe(2);
     const updated = result.current.updated;
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(15000);
+      await vi.advanceTimersByTimeAsync(500);
     });
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(result.current.data?.summary.total).toBe(2);
     expect(result.current.updated).toBe(updated);
     expect(result.current.connected).toBe(false);
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(29999);
+      await vi.advanceTimersByTimeAsync(1999);
     });
     expect(fetch).toHaveBeenCalledTimes(2);
     await act(async () => {
@@ -162,6 +162,26 @@ describe("polling e recuperação", () => {
     });
     expect(fetch).toHaveBeenCalledTimes(3);
     expect(result.current.connected).toBe(true);
+  });
+  it("apresenta a mudança recebida na próxima consulta sem recarregar a página", async () => {
+    vi.useFakeTimers();
+    const changed: Snapshot = {
+      ...snapshot,
+      spots: snapshot.spots.map((spot) => ({ ...spot, status: "OCCUPIED" })),
+      summary: { total: 2, free: 0, occupied: 2, unknown: 0, occupancyPercent: 100 },
+    };
+    const fetch = vi.fn()
+      .mockImplementationOnce(() => respond())
+      .mockImplementation(() => respond(changed));
+    vi.stubGlobal("fetch", fetch);
+    const { result } = renderHook(() => useParking());
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(result.current.data?.spots[0].status).toBe("FREE");
+    await act(async () => { await vi.advanceTimersByTimeAsync(499); });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(result.current.data?.spots[0].status).toBe("OCCUPIED");
+    expect(result.current.data?.summary.occupancyPercent).toBe(100);
   });
   it("não sobrepõe consultas e cancela ao desmontar", async () => {
     vi.useFakeTimers();

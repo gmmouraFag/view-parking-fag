@@ -3,6 +3,14 @@ import { fetchSnapshot, isSnapshot } from "./api";
 import type { Snapshot } from "./types";
 
 const cacheKey = "parking-fag:last-observation:v1";
+const configuredInterval = Number(import.meta.env.VITE_POLL_INTERVAL_MS || 500);
+const pollInterval =
+  Number.isFinite(configuredInterval) &&
+  configuredInterval >= 250 &&
+  configuredInterval <= 30000
+    ? configuredInterval
+    : 500;
+const retryInterval = 2000;
 function readCache(): { data: Snapshot; updated: string } | null {
   try {
     const cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
@@ -29,7 +37,7 @@ export function useParking() {
     async function poll() {
       controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
-      let delay = 15000;
+      let delay = pollInterval;
       try {
         const snapshot = await fetchSnapshot(controller.signal);
         if (!active) return;
@@ -48,7 +56,7 @@ export function useParking() {
       } catch {
         if (!active) return;
         setConnected(false);
-        delay = 30000;
+        delay = retryInterval;
       } finally {
         clearTimeout(timeout);
         if (active) {
