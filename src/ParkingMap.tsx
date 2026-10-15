@@ -179,7 +179,7 @@ export function ParkingMap({
                         </span>
                       </button>
                       {onReserve && selectedCode === spot.spotCode && <div className="inline-reservation">
-                        {spot.accessible ? <p>Vaga PCD: reserva online indisponível até definir elegibilidade.</p>
+                        {spot.accessible ? <p role="status">Não é possível reservar vagas destinadas a pessoas com deficiência (PCD).</p>
                           : spot.status === "FREE" ? <button className="reserve-spot" disabled={reservationDisabled}
                             aria-label={`Reservar vaga ${spot.spotCode}`}
                             onClick={() => onReserve(spot.spotCode)}>Reservar vaga</button>

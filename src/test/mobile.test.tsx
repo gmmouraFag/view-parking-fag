@@ -13,10 +13,10 @@ const data: Snapshot = { version: 1, monitoringActive: true, serverTime: "2026-1
     polygon: [{x:.2,y:.1},{x:.3,y:.1},{x:.3,y:.2}], lastObserved: "", lastUpdated: "" } ] };
 const base: Reservation = { id: "id", spotCode: "A", status: "ACTIVE", createdAt: data.serverTime, expiresAt: "2026-10-15T15:01:30Z" };
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
-function backend(initial: Reservation | null = null) {
+function backend(initial: Reservation | null = null, alternativeSpots = [data.spots[0]]) {
   let reservation = initial;
   const fetch = vi.fn(async (url: string, options: RequestInit) => {
-    if (url.includes("alternatives")) return { ok: true, json: async () => [data.spots[0]] };
+    if (url.includes("alternatives")) return { ok: true, json: async () => alternativeSpots };
     if (options?.method === "POST") {
       reservation = url.endsWith("reject") ? {...base,status:"DISPLACED"} : url.endsWith("confirm") ? {...base,status:"COMPLETED"} : base;
     }
@@ -35,6 +35,26 @@ it("reserva somente vaga comum e mostra o prazo recebido do servidor", async () 
   fireEvent.click(button);
   expect(await screen.findByRole("timer")).toHaveTextContent("1:30");
   expect(server.fetch.mock.calls.some(([url,options]) => url.endsWith("/reservations") && options.credentials === "include")).toBe(true);
+});
+it("informa o bloqueio ao selecionar PCD sem enviar solicitação de reserva", async () => {
+  const server = backend();
+  render(<MobileReservations data={data} connected />);
+  fireEvent.click(await screen.findByRole("button",{name:"PCD Livre Acessível"}));
+  expect(screen.getByText("Não é possível reservar vagas destinadas a pessoas com deficiência (PCD).")).toBeInTheDocument();
+  expect(screen.queryByRole("button",{name:"Reservar vaga PCD"})).not.toBeInTheDocument();
+  expect(server.fetch.mock.calls.some(([,options]) => options?.method === "POST")).toBe(false);
+});
+it("não recomenda PCD mesmo que venha na lista de alternativas", async () => {
+  backend({...base,status:"DISPLACED"},[data.spots[1],data.spots[0]]);
+  render(<MobileReservations data={data} connected />);
+  expect(await screen.findByRole("button",{name:"Aceitar vaga A"})).toBeInTheDocument();
+  expect(screen.queryByRole("button",{name:"Aceitar vaga PCD"})).not.toBeInTheDocument();
+});
+it("informa ausência de alternativas quando restam somente vagas PCD", async () => {
+  backend({...base,status:"DISPLACED"},[data.spots[1]]);
+  render(<MobileReservations data={data} connected />);
+  expect(await screen.findByText("Nenhuma alternativa disponível no momento.")).toBeInTheDocument();
+  expect(screen.queryByRole("button",{name:"Aceitar vaga PCD"})).not.toBeInTheDocument();
 });
 it("recupera confirmação pendente e oferece alternativa somente depois da rejeição", async () => {
   backend({...base,status:"PENDING_CONFIRMATION"});

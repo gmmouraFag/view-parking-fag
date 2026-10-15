@@ -65,7 +65,7 @@ export function MobileReservations({ data, connected }: { data: Snapshot | null;
     setAlternatives(null);
     let active = true;
     request<Spot[]>(`/parking-spots/alternatives?from=${encodeURIComponent(reservation.spotCode)}`)
-      .then(spots => { if (active) setAlternatives(spots); })
+      .then(spots => { if (active) setAlternatives(spots.filter(spot => !spot.accessible && spot.status === "FREE")); })
       .catch(() => { if (active) setError("Não foi possível buscar alternativas. Consulte as vagas disponíveis abaixo."); });
     return () => { active = false; };
   }, [reservation?.status, reservation?.spotCode]);
