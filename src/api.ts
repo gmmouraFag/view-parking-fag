@@ -8,7 +8,7 @@ export function isSnapshot(value: unknown): value is Snapshot {
     data.spots.every(
       (s) =>
         typeof s.spotCode === "string" &&
-        ["FREE", "OCCUPIED", "UNKNOWN"].includes(s.status) &&
+        ["FREE", "OCCUPIED", "UNKNOWN", "RESERVED"].includes(s.status) &&
         typeof s.sector === "string" &&
         typeof s.accessible === "boolean" &&
         typeof s.layoutOrder === "number" &&
@@ -25,16 +25,31 @@ export function isSnapshot(value: unknown): value is Snapshot {
         ),
     ) &&
     !!data.summary &&
-    ["total", "free", "occupied", "unknown"].every(
+    ["total", "free", "occupied", "reserved", "unknown"].every(
       (key) =>
         Number.isInteger(data.summary[key as keyof typeof data.summary]) &&
         (data.summary[key as keyof typeof data.summary] as number) >= 0,
     ) &&
     data.summary.total === data.spots.length &&
     data.summary.total ===
-      data.summary.free + data.summary.occupied + data.summary.unknown &&
-    typeof data.monitoringActive === "boolean"
+      data.summary.free + data.summary.occupied + data.summary.reserved + data.summary.unknown &&
+    typeof data.monitoringActive === "boolean" &&
+    Number.isSafeInteger(data.version) && data.version >= 0 &&
+    Number.isFinite(Date.parse(data.serverTime))
   );
+}
+
+export const apiBase = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+export async function request<T>(path: string, body?: unknown): Promise<T> {
+  const response = await fetch(`${apiBase}/api/v1${path}`, {
+    method: body === undefined ? "GET" : "POST",
+    credentials: "include", cache: "no-store", signal: AbortSignal.timeout(8000),
+    headers: body === undefined ? {} : { "Content-Type": "application/json", "X-Parking-Client": "mobile" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "Não foi possível concluir a operação");
+  return data as T;
 }
 
 export async function fetchSnapshot(signal: AbortSignal): Promise<Snapshot> {

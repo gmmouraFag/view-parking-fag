@@ -7,11 +7,11 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       host: "0.0.0.0",
-      proxy: { "/api": env.JAVA_PROXY_URL || "http://localhost:8080" },
+      proxy: { "/api": { target: env.JAVA_PROXY_URL || "http://localhost:8080", ws: true } },
     },
     preview: {
       host: "0.0.0.0",
-      proxy: { "/api": env.JAVA_PROXY_URL || "http://localhost:8080" },
+      proxy: { "/api": { target: env.JAVA_PROXY_URL || "http://localhost:8080", ws: true } },
     },
   };
 });

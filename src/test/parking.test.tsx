@@ -44,8 +44,8 @@ const snapshot: Snapshot = {
       lastUpdated: "2026-10-07T12:00:00Z",
     },
   ],
-  summary: { total: 2, free: 1, occupied: 1, unknown: 0, occupancyPercent: 50 },
-  serverTime: "2026-10-07T12:00:00Z",
+  summary: { total: 2, free: 1, occupied: 1, reserved: 0, unknown: 0, occupancyPercent: 50 },
+  version: 1, serverTime: "2026-10-07T12:00:00Z",
   monitoringActive: true,
 };
 
@@ -118,7 +118,7 @@ describe("visualização das vagas", () => {
             total: 0,
             free: 0,
             occupied: 0,
-            unknown: 0,
+            reserved: 0, unknown: 0,
             occupancyPercent: null,
           },
         }),
@@ -132,7 +132,7 @@ describe("visualização das vagas", () => {
 });
 
 describe("polling e recuperação", () => {
-  it("consulta após 500 ms, preserva dados e tenta após 2 segundos na falha", async () => {
+  it("consulta após 15 segundos, preserva dados e tenta após 30 segundos na falha", async () => {
     vi.useFakeTimers();
     const fetch = vi
       .fn()
@@ -147,14 +147,14 @@ describe("polling e recuperação", () => {
     expect(result.current.data?.summary.total).toBe(2);
     const updated = result.current.updated;
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(15000);
     });
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(result.current.data?.summary.total).toBe(2);
     expect(result.current.updated).toBe(updated);
     expect(result.current.connected).toBe(false);
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(1999);
+      await vi.advanceTimersByTimeAsync(29999);
     });
     expect(fetch).toHaveBeenCalledTimes(2);
     await act(async () => {
@@ -167,8 +167,9 @@ describe("polling e recuperação", () => {
     vi.useFakeTimers();
     const changed: Snapshot = {
       ...snapshot,
+      version: 2,
       spots: snapshot.spots.map((spot) => ({ ...spot, status: "OCCUPIED" })),
-      summary: { total: 2, free: 0, occupied: 2, unknown: 0, occupancyPercent: 100 },
+      summary: { total: 2, free: 0, occupied: 2, reserved: 0, unknown: 0, occupancyPercent: 100 },
     };
     const fetch = vi.fn()
       .mockImplementationOnce(() => respond())
@@ -177,7 +178,7 @@ describe("polling e recuperação", () => {
     const { result } = renderHook(() => useParking());
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     expect(result.current.data?.spots[0].status).toBe("FREE");
-    await act(async () => { await vi.advanceTimersByTimeAsync(499); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(14999); });
     expect(fetch).toHaveBeenCalledTimes(1);
     await act(async () => { await vi.advanceTimersByTimeAsync(1); });
     expect(result.current.data?.spots[0].status).toBe("OCCUPIED");
@@ -201,8 +202,8 @@ describe("polling e recuperação", () => {
   });
   it("mantém cache após recarregar a página durante falha", async () => {
     localStorage.setItem(
-      "parking-fag:last-observation:v1",
-      JSON.stringify({ data: snapshot, updated: "2026-10-07T12:00:00Z" }),
+      "parking-fag:last-observation:v2",
+      JSON.stringify(snapshot),
     );
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     const { result } = renderHook(() => useParking());
@@ -214,7 +215,7 @@ describe("polling e recuperação", () => {
     expect(
       isSnapshot({
         spots: [],
-        summary: { total: 5, free: 0, occupied: 0, unknown: 0 },
+        summary: { total: 5, free: 0, occupied: 0, reserved: 0, unknown: 0 },
       }),
     ).toBe(false);
     expect(isSnapshot(snapshot)).toBe(true);
