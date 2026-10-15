@@ -5,9 +5,13 @@ import { statusLabel } from "./types";
 export function ParkingMap({
   spots,
   panelOnly = false,
+  onReserve,
+  reservationDisabled = false,
 }: {
   spots: Spot[];
   panelOnly?: boolean;
+  onReserve?: (spotCode: string) => void;
+  reservationDisabled?: boolean;
 }) {
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const selected = spots.find((s) => s.spotCode === selectedCode) || null;
@@ -152,9 +156,10 @@ export function ParkingMap({
                     .filter((s) => s.sector === sector)
                     .sort((a, b) => a.layoutOrder - b.layoutOrder)
                     .map((spot) => (
+                      <div className="panel-spot" key={spot.spotCode}>
                       <button
-                        key={spot.spotCode}
                         className={`totem-spot ${spot.status.toLowerCase()}`}
+                        aria-expanded={onReserve ? selectedCode === spot.spotCode : undefined}
                         onClick={() => setSelectedCode(spot.spotCode)}
                         aria-label={`${spot.spotCode} ${statusLabel[spot.status]}${spot.accessible ? " Acessível" : ""}`}
                       >
@@ -164,6 +169,14 @@ export function ParkingMap({
                           {statusLabel[spot.status]}
                         </span>
                       </button>
+                      {onReserve && selectedCode === spot.spotCode && <div className="inline-reservation">
+                        {spot.accessible ? <p>Vaga PCD: reserva online indisponível até definir elegibilidade.</p>
+                          : spot.status === "FREE" ? <button className="reserve-spot" disabled={reservationDisabled}
+                            aria-label={`Reservar vaga ${spot.spotCode}`}
+                            onClick={() => onReserve(spot.spotCode)}>Reservar vaga</button>
+                          : <p>Vaga {statusLabel[spot.status].toLowerCase()}: indisponível para reserva.</p>}
+                      </div>}
+                      </div>
                     ))}
                 </div>
               </section>
@@ -190,7 +203,7 @@ export function ParkingMap({
         </div>
         <span>Posições do vídeo</span>
       </div>
-      {selected && (
+      {selected && !onReserve && (
         <div className="spot-detail" role="status">
           <strong>Vaga {selected.spotCode}</strong>
           <span>

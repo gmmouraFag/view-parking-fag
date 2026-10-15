@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { request } from "./api";
+import { ParkingMap } from "./ParkingMap";
 import type { PrivateSnapshot, Snapshot, Spot } from "./types";
 
 export function MobileReservations({ data, connected }: { data: Snapshot | null; connected: boolean }) {
@@ -103,9 +104,10 @@ export function MobileReservations({ data, connected }: { data: Snapshot | null;
         <button disabled={busy || !connected} onClick={() => void operate("/reservations", { spotCode: alternatives[0].spotCode })}>Aceitar vaga {alternatives[0].spotCode}</button></>
         : <p>Nenhuma alternativa disponível no momento.</p>}
     </article>}
-    {!live && <><h2>Escolha uma vaga livre</h2><p>A reserva dura 90 segundos. Vagas PCD exigem elegibilidade e estão indisponíveis para reserva online.</p>
-      <div className="available-spots">{available.map(spot => <button key={spot.spotCode} disabled={busy || !connected || !sessionReady || !data?.monitoringActive}
-        onClick={() => void operate("/reservations", { spotCode: spot.spotCode })}>Reservar vaga {spot.spotCode}</button>)}</div>
+    {!live && <><h2>Escolha uma vaga livre</h2><p>Toque em uma vaga verde no painel e depois em “Reservar vaga”. A reserva dura 90 segundos.</p>
       {!available.length && <p>Nenhuma vaga comum disponível para reserva.</p>}</>}
+    {!!data?.spots.length && <ParkingMap spots={data.spots} panelOnly
+      onReserve={spotCode => void operate("/reservations", { spotCode })}
+      reservationDisabled={busy || !!live || !connected || !sessionReady || !data.monitoringActive} />}
   </section>;
 }

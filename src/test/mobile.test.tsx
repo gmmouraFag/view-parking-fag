@@ -27,6 +27,7 @@ function backend(initial: Reservation | null = null) {
 it("reserva somente vaga comum e mostra o prazo recebido do servidor", async () => {
   const server = backend();
   render(<MobileReservations data={data} connected />);
+  fireEvent.click(await screen.findByRole("button", {name:"A Livre"}));
   const button = await screen.findByRole("button", {name:"Reservar vaga A"});
   await act(async () => {});
   expect(screen.queryByRole("button",{name:"Reservar vaga PCD"})).not.toBeInTheDocument();
@@ -57,6 +58,7 @@ it("não mostra popup de outra sessão e informa conflito devolvido pelo servido
   vi.stubGlobal("fetch",vi.fn(async (_url, options) => options.method === "POST"
     ? {ok:false,json:async()=>({message:"Vaga indisponível para reserva"})}
     : {ok:true,json:async()=>({reservation:null,serverTime:data.serverTime})}));
+  fireEvent.click(screen.getByRole("button",{name:"A Livre"}));
   fireEvent.click(screen.getByRole("button",{name:"Reservar vaga A"}));
   expect(await screen.findByRole("alert")).toHaveTextContent("Vaga indisponível");
 });
@@ -87,6 +89,7 @@ it("remove avisos encerrados em 10s e não os restaura ao consultar ou recarrega
   render(<MobileReservations data={data} connected />);
   await act(async () => { await vi.advanceTimersByTimeAsync(1); });
   expect(screen.queryByText("Outra pessoa ocupou sua vaga")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button",{name:"A Livre"}));
   expect(screen.getByRole("button",{name:"Reservar vaga A"})).toBeInTheDocument();
 });
 it("mantém a reserva ativa visível depois do prazo de aviso", async () => {
