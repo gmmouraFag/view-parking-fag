@@ -7,7 +7,7 @@ export function Dashboard({ mobile = false }: { mobile?: boolean }) {
   return <main className={mobile ? "mobile-page" : "totem-page"}>
     <header className="operation-header"><div><span className="eyebrow">PARKING FAG</span>
       <h1>{mobile ? "Reserve sua vaga" : "Vagas do estacionamento"}</h1></div>
-      <a href={mobile ? "/totem" : "/mobile"}>{mobile ? "Ver totem" : "Reservar pelo celular"}</a>
+      {mobile && <a href="/totem">Ver totem</a>}
     </header>
     <p className="connection" role="status">{connected && data?.monitoringActive ? "Monitoramento ativo" : "Monitoramento indisponível · aguardando atualização"}</p>
     {data && <section className="counts" aria-label="Resumo das vagas">

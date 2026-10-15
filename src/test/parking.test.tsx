@@ -65,6 +65,7 @@ it("apresenta somente o painel na página dedicada", async () => {
     screen.queryByRole("button", { name: "Mapa" }),
   ).not.toBeInTheDocument();
   expect(screen.queryByText("MOBILIDADE NO CAMPUS")).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", {name:"Reservar pelo celular"})).not.toBeInTheDocument();
 });
 function respond(data = snapshot) {
   return Promise.resolve({ ok: true, json: async () => data } as Response);

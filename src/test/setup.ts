@@ -4,6 +4,7 @@ import { afterEach, beforeEach, vi } from "vitest";
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  sessionStorage.clear();
 });
 
 // WebSocket is mocked explicitly by tests exercising the real-time transport.

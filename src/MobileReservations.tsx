@@ -9,6 +9,7 @@ export function MobileReservations({ data, connected }: { data: Snapshot | null;
   const [sessionReady, setSessionReady] = useState(false);
   const [remaining, setRemaining] = useState(0);
   const [alternatives, setAlternatives] = useState<Spot[] | null>(null);
+  const [dismissedNotice, setDismissedNotice] = useState("");
   const mounted = useRef(true);
   const newestServerTime = useRef(-Infinity);
   const sample = useRef({ time: 0, received: 0 });
@@ -38,6 +39,20 @@ export function MobileReservations({ data, connected }: { data: Snapshot | null;
   useEffect(() => { if (signature !== undefined) void refresh(); }, [signature, refresh]);
   const reservation = privateData?.reservation;
   const live = reservation?.status === "ACTIVE" || reservation?.status === "PENDING_CONFIRMATION";
+  const terminalKey = reservation && !live ? `${reservation.id}:${reservation.status}` : null;
+  useEffect(() => {
+    if (!terminalKey) return;
+    let until = Date.now() + 10000;
+    try {
+      const stored = JSON.parse(sessionStorage.getItem("parking-fag:last-notice") || "null");
+      if (stored?.key === terminalKey && Number.isFinite(stored.until)) until = stored.until;
+      sessionStorage.setItem("parking-fag:last-notice", JSON.stringify({ key: terminalKey, until }));
+    } catch { /* Notice expiry still works when browser storage is unavailable. */ }
+    if (until <= Date.now()) { setDismissedNotice(terminalKey); return; }
+    const timer = setTimeout(() => setDismissedNotice(terminalKey), until - Date.now());
+    return () => clearTimeout(timer);
+  }, [terminalKey]);
+  const showReservation = reservation && (live || dismissedNotice !== terminalKey);
   useEffect(() => {
     if (!reservation || !live) return;
     const tick = () => setRemaining(Math.max(0, Math.ceil((Date.parse(reservation.expiresAt) - sample.current.time - (performance.now() - sample.current.received)) / 1000)));
@@ -63,7 +78,7 @@ export function MobileReservations({ data, connected }: { data: Snapshot | null;
   const available = data?.spots.filter(s => s.status === "FREE" && !s.accessible) || [];
   return <section className="reservations" aria-label="Reservas pelo celular">
     {error && <p className="error" role="alert">{error}</p>}
-    {reservation && <article className="reservation-card">
+    {showReservation && <article className="reservation-card">
       <h2>{live ? "Sua reserva" : "Última reserva"} · {reservation.spotCode}</h2>
       {live ? <><p className="timer" role="timer" aria-label="Tempo restante">{Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2,"0")}</p>
         <p>{remaining > 0 ? "Dirija-se à vaga antes do fim do prazo." : "Prazo atingido. Aguardando confirmação do servidor."}</p>
@@ -83,7 +98,7 @@ export function MobileReservations({ data, connected }: { data: Snapshot | null;
       <button autoFocus disabled={busy} onClick={() => void operate(`/reservations/${reservation.id}/confirm`)}>Sim, fui eu</button>
       <button disabled={busy} onClick={() => void operate(`/reservations/${reservation.id}/reject`)}>Não, não fui eu</button>
     </section></div>}
-    {!live && reservation?.status === "DISPLACED" && <article className="reservation-card"><h2>Alternativa próxima</h2>
+    {showReservation && !live && reservation?.status === "DISPLACED" && <article className="reservation-card"><h2>Alternativa próxima</h2>
       {alternatives === null ? <p>Buscando alternativa disponível…</p> : alternatives.length ? <><p>Vaga {alternatives[0].spotCode} · proximidade estimada pelo mapa do vídeo.</p>
         <button disabled={busy || !connected} onClick={() => void operate("/reservations", { spotCode: alternatives[0].spotCode })}>Aceitar vaga {alternatives[0].spotCode}</button></>
         : <p>Nenhuma alternativa disponível no momento.</p>}

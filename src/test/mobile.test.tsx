@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { MobileReservations } from "../MobileReservations";
+import { Dashboard } from "../Dashboard";
 import type { Reservation, Snapshot } from "../types";
 
 const data: Snapshot = { version: 1, monitoringActive: true, serverTime: "2026-10-15T15:00:00Z",
@@ -70,4 +71,37 @@ it("ao zerar o contador aguarda o backend e não conclui estacionamento sozinho"
   expect(screen.getByRole("timer")).toHaveTextContent("0:00");
   expect(screen.getByText("Prazo atingido. Aguardando confirmação do servidor.")).toBeInTheDocument();
   expect(screen.queryByText("Estacionamento confirmado")).not.toBeInTheDocument();
+});
+it("remove avisos encerrados em 10s e não os restaura ao consultar ou recarregar", async () => {
+  vi.useFakeTimers(); backend({...base,status:"DISPLACED"});
+  const page = render(<MobileReservations data={data} connected />);
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  expect(screen.getByText("Outra pessoa ocupou sua vaga")).toBeInTheDocument();
+  expect(screen.getByText("Alternativa próxima")).toBeInTheDocument();
+  await act(async () => { await vi.advanceTimersByTimeAsync(10000); });
+  expect(screen.queryByText("Outra pessoa ocupou sua vaga")).not.toBeInTheDocument();
+  expect(screen.queryByText("Alternativa próxima")).not.toBeInTheDocument();
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+  expect(screen.queryByText("Outra pessoa ocupou sua vaga")).not.toBeInTheDocument();
+  page.unmount();
+  render(<MobileReservations data={data} connected />);
+  await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+  expect(screen.queryByText("Outra pessoa ocupou sua vaga")).not.toBeInTheDocument();
+  expect(screen.getByRole("button",{name:"Reservar vaga A"})).toBeInTheDocument();
+});
+it("mantém a reserva ativa visível depois do prazo de aviso", async () => {
+  vi.useFakeTimers(); backend(base);
+  render(<MobileReservations data={data} connected />);
+  await act(async () => { await vi.advanceTimersByTimeAsync(11000); });
+  expect(screen.getByRole("timer")).toBeInTheDocument();
+  expect(screen.getByRole("button",{name:"Cancelar reserva"})).toBeInTheDocument();
+});
+it("mobile apresenta o painel sem mapa ou seletor de visualização", async () => {
+  vi.stubGlobal("fetch",vi.fn(async (url: string) => ({ok:true,json:async()=>url.includes("reservations")
+    ? {reservation:null,serverTime:data.serverTime} : data})));
+  render(<Dashboard mobile />);
+  expect(await screen.findByRole("button",{name:"A Livre"})).toBeInTheDocument();
+  expect(screen.queryByRole("group",{name:"Mapa das vagas nas posições do vídeo"})).not.toBeInTheDocument();
+  expect(screen.queryByRole("button",{name:"Mapa"})).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Visualização")).not.toBeInTheDocument();
 });
