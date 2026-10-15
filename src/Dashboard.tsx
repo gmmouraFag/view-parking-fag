@@ -17,7 +17,7 @@ export function Dashboard({ mobile = false }: { mobile?: boolean }) {
     </section>}
     {data?.summary.occupancyPercent != null && <p className="occupancy">{data.summary.occupancyPercent}% de ocupação das vagas conhecidas</p>}
     {mobile && <MobileReservations data={data} connected={connected} />}
-    {data?.spots.length ? <ParkingMap spots={data.spots} panelOnly={!mobile} /> : <section className="empty-state">
+    {data?.spots.length ? <ParkingMap spots={data.spots} panelOnly /> : <section className="empty-state">
       <h2>{loading ? "Carregando painel" : data ? "Nenhuma vaga cadastrada" : "Aguardando monitoramento"}</h2>
     </section>}
     <footer>Atualizado às {updated ? new Date(updated).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—"} · Horário de Brasília

@@ -1,7 +1,8 @@
 # Interfaces operacionais
 
 `/` e `/totem`: painel informativo, contagens, estados e legenda. `/painel` é alias legado.
-`/mobile`: reserva comum por 90s, cancelamento, confirmação privada e alternativa.
+`/mobile`: painel de vagas sem mapa ou seletor de visualização, reserva comum por 90s,
+cancelamento, confirmação privada e alternativa.
 Landing page e estilos institucionais foram removidos. Não há nova dependência de UI.
 
 `npm run dev` é somente desenvolvimento. Para acesso externo use `npm run build` e
