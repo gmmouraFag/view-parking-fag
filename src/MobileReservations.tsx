@@ -8,16 +8,18 @@ export function MobileReservations({ data, connected }: { data: Snapshot | null;
   const [busy, setBusy] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const [remaining, setRemaining] = useState(0);
-  const [alternatives, setAlternatives] = useState<Spot[]>([]);
+  const [alternatives, setAlternatives] = useState<Spot[] | null>(null);
   const mounted = useRef(true);
+  const newestServerTime = useRef(-Infinity);
   const sample = useRef({ time: 0, received: 0 });
   const accept = useCallback((value: PrivateSnapshot) => {
     if (!mounted.current) return;
-    setPrivateData(previous => {
-      if (previous && Date.parse(value.serverTime) < Date.parse(previous.serverTime)) return previous;
-      sample.current = { time: Date.parse(value.serverTime), received: performance.now() };
-      return value;
-    });
+    const time = Date.parse(value.serverTime);
+    if (time < newestServerTime.current) return;
+    newestServerTime.current = time;
+    sample.current = { time, received: performance.now() };
+    setRemaining(value.reservation ? Math.max(0,Math.ceil((Date.parse(value.reservation.expiresAt) - time) / 1000)) : 0);
+    setPrivateData(value);
     setSessionReady(true);
   }, []);
   const refresh = useCallback(async () => {
@@ -44,6 +46,7 @@ export function MobileReservations({ data, connected }: { data: Snapshot | null;
   }, [reservation, live]);
   useEffect(() => {
     if (reservation?.status !== "DISPLACED") { setAlternatives([]); return; }
+    setAlternatives(null);
     let active = true;
     request<Spot[]>(`/parking-spots/alternatives?from=${encodeURIComponent(reservation.spotCode)}`)
       .then(spots => { if (active) setAlternatives(spots); })
@@ -81,7 +84,7 @@ export function MobileReservations({ data, connected }: { data: Snapshot | null;
       <button disabled={busy} onClick={() => void operate(`/reservations/${reservation.id}/reject`)}>Não, não fui eu</button>
     </section></div>}
     {!live && reservation?.status === "DISPLACED" && <article className="reservation-card"><h2>Alternativa próxima</h2>
-      {alternatives.length ? <><p>Vaga {alternatives[0].spotCode} · proximidade estimada pelo mapa do vídeo.</p>
+      {alternatives === null ? <p>Buscando alternativa disponível…</p> : alternatives.length ? <><p>Vaga {alternatives[0].spotCode} · proximidade estimada pelo mapa do vídeo.</p>
         <button disabled={busy || !connected} onClick={() => void operate("/reservations", { spotCode: alternatives[0].spotCode })}>Aceitar vaga {alternatives[0].spotCode}</button></>
         : <p>Nenhuma alternativa disponível no momento.</p>}
     </article>}

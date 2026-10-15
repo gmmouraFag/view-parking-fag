@@ -59,3 +59,15 @@ it("não mostra popup de outra sessão e informa conflito devolvido pelo servido
   fireEvent.click(screen.getByRole("button",{name:"Reservar vaga A"}));
   expect(await screen.findByRole("alert")).toHaveTextContent("Vaga indisponível");
 });
+it("ao zerar o contador aguarda o backend e não conclui estacionamento sozinho", async () => {
+  vi.useFakeTimers(); backend(base);
+  render(<MobileReservations data={data} connected />);
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  expect(screen.getByRole("timer")).toHaveTextContent("1:30");
+  // A consulta privada também acontece periodicamente. Aqui simulamos indisponibilidade após a leitura.
+  vi.stubGlobal("fetch",vi.fn().mockRejectedValue(new Error("offline")));
+  await act(async () => { await vi.advanceTimersByTimeAsync(91000); });
+  expect(screen.getByRole("timer")).toHaveTextContent("0:00");
+  expect(screen.getByText("Prazo atingido. Aguardando confirmação do servidor.")).toBeInTheDocument();
+  expect(screen.queryByText("Estacionamento confirmado")).not.toBeInTheDocument();
+});
