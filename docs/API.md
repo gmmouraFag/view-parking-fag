@@ -1,3 +1,11 @@
+# Atualização de contratos — reservas
+
+Veja [RESERVATIONS.md](RESERVATIONS.md). O contrato público agora inclui
+`version`, `summary.reserved`, `spots[].physicalStatus` e estado visual RESERVED.
+O snapshot recebe UNKNOWN quando a observação está antiga; o último estado físico
+fica preservado. Polling antigo foi substituído por WebSocket + segurança 15s/retry 30s.
+As seções abaixo são referência histórica da integração inicial.
+
 # Contrato Parking FAG v1
 
 Fluxo: MP4 em loop → Python → Java → MySQL → Java → React. Somente Java acessa o MySQL.

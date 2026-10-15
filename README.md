@@ -1,52 +1,42 @@
-# Parking FAG — Interface
+# Parking FAG — Totem e Mobile
 
-React 19.3, TypeScript 5.9, Vite 8.3. Interface em português baseada no protótipo, com mapa físico, painel de setores,
-estados textuais e cores verde/vermelho/cinza, acessibilidade, contagens e percentual sobre vagas de estado conhecido.
-Consome exclusivamente Java. Não contém estados de vagas fictícios no fluxo de produção.
+React / TypeScript / Vite. Dados oficiais do Java, atualizações WebSocket, reservas
+persistentes de 90 segundos e confirmação privada. Landing page removida.
 
-## Execução local
+- `/` e `/totem`: painel com contagens e estados.
+- `/mobile`: reserva, tempo restante, confirmação e alternativa.
+- `/painel`: alias legado do totem.
 
-Node.js 24 e npm. Validação local em Node 24.16 e npm 11.13.
-
-```sh
+```powershell
 npm ci
 npm run dev
 ```
 
-Abra [localhost:5173](http://localhost:5173). A aplicação fica disponível também pelo IP da máquina na rede local, na porta 5173.
-O endpoint web [localhost:5173/painel](http://localhost:5173/painel) apresenta somente o painel de vagas e sua legenda, sem o restante do site.
-Ambas as páginas usam a mesma API, atualização periódica e preservação de dados em falhas. Em hospedagem de `dist`, configure fallback das rotas para `index.html`.
-O proxy `/api` encaminha ao Java em `localhost:8080`, evitando exigir a URL localhost do computador servidor nos navegadores de outras máquinas.
-Copie `.env.example` para `.env` para personalizar o proxy. Reinicie Vite ao alterar variáveis.
+Copie `.env.example` na primeira preparação. Mantenha VITE_API_BASE_URL vazio para
+usar `/api` pela mesma origem. No desenvolvimento, Vite encaminha ao Java.
 
-Para uma API em origem separada, defina `VITE_API_BASE_URL` e habilite a origem do frontend em `CORS_ORIGINS` no Java.
-Nunca coloque chave de ingestão ou credencial de banco em variáveis `VITE_*`.
+Para acesso externo, use build e o servidor com lista de APIs permitidas:
 
-## Atualização e falhas
-
-Consulta inicial imediata. Próxima consulta 500 ms após sucesso ou 2 segundos após falha, com timeout de 8 segundos.
-`VITE_POLL_INTERVAL_MS` permite ajustar o intervalo de sucesso entre 250 e 30000 ms; valores inválidos usam 500 ms.
-No ambiente local, uma mudança já persistida costuma aparecer na próxima consulta, em até cerca de 500 ms mais o tempo da requisição.
-Esse intervalo é separado da confirmação da detecção: três amostras a 2 FPS exigem cerca de 1 a 1,5 segundo de análise consistente.
-Não há consultas sobrepostas. Desmontar a interface cancela a consulta pendente.
-Durante indisponibilidade, os últimos estados e horário bem-sucedido permanecem. O snapshot também é mantido no navegador para recarregamentos.
-Não apresenta mensagens de erro técnico, conforme pedido do usuário. Indica discretamente "Última leitura disponível".
-Sem observações anteriores, apresenta "Aguardando monitoramento". Catálogo vazio é tratado separadamente.
-Estado `UNKNOWN` vem do Java; falha HTTP não muda estados para desconhecidos.
-
-## Qualidade e build
-
-```sh
-npm run lint
-npm run typecheck
-npm test
+```powershell
 npm run build
-npm run preview
+npm run serve
+# Em outro terminal:
+cloudflared tunnel --url http://127.0.0.1:4173
 ```
 
-`preview` permite conferir o build local e possui o mesmo proxy. Para implantação permanente, sirva `dist` e configure proxy `/api` ou API de origem separada.
-GitHub Actions executa instalação pelo lockfile, lint, tipagem, testes e build em Node 24.
-Vitest/React Testing Library verificam apresentação, atualização, retry, cancelamento, retenção de cache e catálogo vazio.
-Mocks são exclusivos dos testes.
+`serve` lê JAVA_PROXY_URL, PUBLIC_BIND e PUBLIC_PORT do processo. A execução integrada
+é feita pelo `scripts/run-stack.ps1` no repositório Java, que prepara os três serviços.
+Não exponha o servidor Vite ou o Java diretamente à internet.
 
-[Contrato compartilhado](docs/API.md) · [Validação](docs/VALIDATION.md)
+[Detalhes dos fluxos](docs/RESERVATIONS.md). Guia completo de preparação, túnel,
+variáveis e encerramento: `orchestrador-parking-fag/docs/EXECUCAO_RESERVAS.md`.
+
+```powershell
+npm run lint
+npm test
+npm run build
+```
+
+HTTP de segurança: 15s; retry de falha: 30s. Token fica em cookie HttpOnly, nunca no
+localStorage. Horários explicitamente em America/Sao_Paulo. PCD monitorada, sem reserva
+online até definir elegibilidade. Alternativas usam proximidade visual estimada.
