@@ -186,6 +186,7 @@ export function ParkingMap({
             Desconhecida
           </span>
           <span className="accessible-label">♿ Acessível</span>
+          <span><i className="reserved" />Reservada</span>
         </div>
         <span>Posições do vídeo</span>
       </div>

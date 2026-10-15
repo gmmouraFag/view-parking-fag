@@ -1,0 +1,61 @@
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, expect, it, vi } from "vitest";
+import { MobileReservations } from "../MobileReservations";
+import type { Reservation, Snapshot } from "../types";
+
+const data: Snapshot = { version: 1, monitoringActive: true, serverTime: "2026-10-15T15:00:00Z",
+  summary: { total: 2, free: 2, occupied: 0, reserved: 0, unknown: 0 },
+  spots: [ { spotCode: "A", status: "FREE", sector: "A", accessible: false, layoutOrder: 0,
+    polygon: [{x:.1,y:.1},{x:.2,y:.1},{x:.2,y:.2}], lastObserved: "", lastUpdated: "" },
+  { spotCode: "PCD", status: "FREE", sector: "A", accessible: true, layoutOrder: 1,
+    polygon: [{x:.2,y:.1},{x:.3,y:.1},{x:.3,y:.2}], lastObserved: "", lastUpdated: "" } ] };
+const base: Reservation = { id: "id", spotCode: "A", status: "ACTIVE", createdAt: data.serverTime, expiresAt: "2026-10-15T15:01:30Z" };
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+function backend(initial: Reservation | null = null) {
+  let reservation = initial;
+  const fetch = vi.fn(async (url: string, options: RequestInit) => {
+    if (url.includes("alternatives")) return { ok: true, json: async () => [data.spots[0]] };
+    if (options?.method === "POST") {
+      reservation = url.endsWith("reject") ? {...base,status:"DISPLACED"} : url.endsWith("confirm") ? {...base,status:"COMPLETED"} : base;
+    }
+    return { ok: true, json: async () => ({ reservation, serverTime: data.serverTime }) };
+  });
+  vi.stubGlobal("fetch", fetch);
+  return { fetch, occupy: () => { reservation = {...base,status:"PENDING_CONFIRMATION"}; } };
+}
+it("reserva somente vaga comum e mostra o prazo recebido do servidor", async () => {
+  const server = backend();
+  render(<MobileReservations data={data} connected />);
+  const button = await screen.findByRole("button", {name:"Reservar vaga A"});
+  await act(async () => {});
+  expect(screen.queryByRole("button",{name:"Reservar vaga PCD"})).not.toBeInTheDocument();
+  fireEvent.click(button);
+  expect(await screen.findByRole("timer")).toHaveTextContent("1:30");
+  expect(server.fetch.mock.calls.some(([url,options]) => url.endsWith("/reservations") && options.credentials === "include")).toBe(true);
+});
+it("recupera confirmação pendente e oferece alternativa somente depois da rejeição", async () => {
+  backend({...base,status:"PENDING_CONFIRMATION"});
+  render(<MobileReservations data={data} connected />);
+  expect(await screen.findByRole("dialog")).toHaveTextContent("Foi você quem estacionou?");
+  fireEvent.click(screen.getByRole("button",{name:"Não, não fui eu"}));
+  expect(await screen.findByRole("button",{name:"Aceitar vaga A"})).toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+it("confirma estacionamento e encerra a reserva no retorno do backend", async () => {
+  backend({...base,status:"PENDING_CONFIRMATION"});
+  render(<MobileReservations data={data} connected />);
+  fireEvent.click(await screen.findByRole("button",{name:"Sim, fui eu"}));
+  expect(await screen.findByText("Estacionamento confirmado")).toBeInTheDocument();
+  expect(screen.queryByRole("timer")).not.toBeInTheDocument();
+});
+it("não mostra popup de outra sessão e informa conflito devolvido pelo servidor", async () => {
+  backend();
+  render(<MobileReservations data={data} connected />);
+  await act(async () => {});
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  vi.stubGlobal("fetch",vi.fn(async (_url, options) => options.method === "POST"
+    ? {ok:false,json:async()=>({message:"Vaga indisponível para reserva"})}
+    : {ok:true,json:async()=>({reservation:null,serverTime:data.serverTime})}));
+  fireEvent.click(screen.getByRole("button",{name:"Reservar vaga A"}));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Vaga indisponível");
+});
