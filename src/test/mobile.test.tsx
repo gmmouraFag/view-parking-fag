@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { MobileReservations } from "../MobileReservations";
 import { Dashboard } from "../Dashboard";
+import { ParkingMap } from "../ParkingMap";
 import type { Reservation, Snapshot } from "../types";
 
 const data: Snapshot = { version: 1, monitoringActive: true, serverTime: "2026-10-15T15:00:00Z",
@@ -107,4 +108,21 @@ it("mobile apresenta o painel sem mapa ou seletor de visualização", async () =
   expect(screen.queryByRole("group",{name:"Mapa das vagas nas posições do vídeo"})).not.toBeInTheDocument();
   expect(screen.queryByRole("button",{name:"Mapa"})).not.toBeInTheDocument();
   expect(screen.queryByLabelText("Visualização")).not.toBeInTheDocument();
+  expect(screen.queryByRole("link",{name:"Ver totem"})).not.toBeInTheDocument();
+});
+it("fecha a mensagem de indisponibilidade quando a vaga atualiza e não reabre seleção antiga", () => {
+  const reserve = vi.fn();
+  const occupied = {...data.spots[0],status:"OCCUPIED" as const};
+  const page = render(<ParkingMap spots={[occupied]} panelOnly onReserve={reserve} />);
+  fireEvent.click(screen.getByRole("button",{name:"A Ocupada"}));
+  expect(screen.getByText("Vaga ocupada: indisponível para reserva.")).toBeInTheDocument();
+  page.rerender(<ParkingMap spots={[data.spots[0]]} panelOnly onReserve={reserve} />);
+  expect(screen.queryByText("Vaga ocupada: indisponível para reserva.")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button",{name:"Reservar vaga A"})).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button",{name:"A Livre"}));
+  expect(screen.getByRole("button",{name:"Reservar vaga A"})).toBeInTheDocument();
+  page.rerender(<ParkingMap spots={[{...data.spots[0],status:"RESERVED"}]} panelOnly onReserve={reserve} />);
+  expect(screen.queryByText("Vaga reservada: indisponível para reserva.")).not.toBeInTheDocument();
+  page.rerender(<ParkingMap spots={[data.spots[0]]} panelOnly onReserve={reserve} />);
+  expect(screen.queryByRole("button",{name:"Reservar vaga A"})).not.toBeInTheDocument();
 });

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Spot } from "./types";
 import { statusLabel } from "./types";
 
@@ -13,8 +13,17 @@ export function ParkingMap({
   onReserve?: (spotCode: string) => void;
   reservationDisabled?: boolean;
 }) {
-  const [selectedCode, setSelectedCode] = useState<string | null>(null);
-  const selected = spots.find((s) => s.spotCode === selectedCode) || null;
+  const [selection, setSelection] = useState<{code: string; status: string; updated: string; accessible: boolean} | null>(null);
+  const selected = spots.find(s => s.spotCode === selection?.code && s.status === selection.status
+    && s.lastUpdated === selection.updated && s.accessible === selection.accessible) || null;
+  const selectedCode = selected?.spotCode || null;
+  function setSelectedCode(code: string | null) {
+    const spot = spots.find(s => s.spotCode === code);
+    setSelection(spot ? { code: spot.spotCode, status: spot.status, updated: spot.lastUpdated, accessible: spot.accessible } : null);
+  }
+  useEffect(() => {
+    if (selection && !selected) setSelection(null);
+  }, [selection, selected]);
   const [mode, setMode] = useState<"map" | "panel">("map");
   const sectors = [...new Set(spots.map((s) => s.sector))].sort();
   return (

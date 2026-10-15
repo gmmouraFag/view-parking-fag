@@ -8,6 +8,7 @@ import {
 import { vi, afterEach, describe, it, expect } from "vitest";
 import App from "../App";
 import PanelPage from "../PanelPage";
+import { Dashboard } from "../Dashboard";
 import { ParkingMap } from "../ParkingMap";
 import { useParking } from "../useParking";
 import { isSnapshot } from "../api";
@@ -66,6 +67,7 @@ it("apresenta somente o painel na página dedicada", async () => {
   ).not.toBeInTheDocument();
   expect(screen.queryByText("MOBILIDADE NO CAMPUS")).not.toBeInTheDocument();
   expect(screen.queryByRole("link", {name:"Reservar pelo celular"})).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Resumo das vagas")).not.toBeInTheDocument();
 });
 function respond(data = snapshot) {
   return Promise.resolve({ ok: true, json: async () => data } as Response);
@@ -102,7 +104,7 @@ describe("visualização das vagas", () => {
       "fetch",
       vi.fn(() => respond()),
     );
-    render(<App />);
+    render(<Dashboard mobile />);
     expect(
       await screen.findByText("50% de ocupação das vagas conhecidas"),
     ).toBeInTheDocument();
